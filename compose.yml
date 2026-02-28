@@ -23,7 +23,7 @@ services:
       - ws_build:/ws/build
       - ws_install:/ws/install
       - ws_log:/ws/log
-      - .:/repo:rw
+      - .:/repo:ro
       - ./.cache/conan2:/home/rvl/.conan2:rw
       - ./.cache/ccache:/home/rvl/.cache/ccache:rw
       - /dev/shm:/dev/shm
@@ -37,18 +37,7 @@ services:
     tty: true
     stdin_open: true
     working_dir: /ws
-    command:
-      - bash
-      - -lc
-      - |
-        set -e
-        if [ -r /home/rvl/.docker.xauth ]; then
-          cp -f /home/rvl/.docker.xauth /home/rvl/.Xauthority
-          chmod 0600 /home/rvl/.Xauthority
-          export XAUTHORITY=/home/rvl/.Xauthority
-        fi
-        /repo/tools/check_vendor.sh || true
-        exec sleep infinity
+    command: ["sleep", "infinity"]
 
   ros-stack-source:
     image: ros-humble-realsense:arm64-source
@@ -75,7 +64,7 @@ services:
       - ws_build:/ws/build
       - ws_install:/ws/install
       - ws_log:/ws/log
-      - .:/repo:rw
+      - .:/repo:ro
       - ./.cache/conan2:/home/rvl/.conan2:rw
       - ./.cache/ccache:/home/rvl/.cache/ccache:rw
       - /dev/shm:/dev/shm
@@ -89,18 +78,7 @@ services:
     tty: true
     stdin_open: true
     working_dir: /ws
-    command:
-      - bash
-      - -lc
-      - |
-        set -e
-        if [ -r /home/rvl/.docker.xauth ]; then
-          cp -f /home/rvl/.docker.xauth /home/rvl/.Xauthority
-          chmod 0600 /home/rvl/.Xauthority
-          export XAUTHORITY=/home/rvl/.Xauthority
-        fi
-        /repo/tools/check_vendor.sh || true
-        exec sleep infinity
+    command: ["sleep", "infinity"]
 
 volumes:
   ws_build:

@@ -174,9 +174,9 @@ RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
     set -eux; \
     echo "vendor cache bust: ${VENDOR_CACHE_BUST}"; \
     patch --batch --forward -p1 -d /tmp/vendor_ws/src/orbslam3_ros2_vendor \
-      < /tmp/vendor-build-parallel.patch; \
+      < /tmp/vendor-build-parallel.patch || true; \
     patch --batch --forward -p1 -d /tmp/vendor_ws/src/orbslam3_ros2_vendor \
-      < /tmp/pangolin-no-werror.patch; \
+      < /tmp/pangolin-no-werror.patch || true; \
     export CXXFLAGS="${CXXFLAGS:-} -Wno-error=type-limits"; \
     set +u; \
     source /opt/ros/humble/setup.bash; \
@@ -204,6 +204,9 @@ FROM base AS runtime
 
 USER root
 COPY --from=vendor-builder /opt/vendor /opt/vendor
+COPY tools/container/entrypoint.sh /usr/local/bin/ros_entrypoint_ext.sh
+COPY tools/container/vendor_check.py /usr/local/bin/vendor_check.py
+RUN chmod +x /usr/local/bin/ros_entrypoint_ext.sh /usr/local/bin/vendor_check.py
 
 ENV CMAKE_PREFIX_PATH=/opt/vendor:/opt/onnxruntime:${CMAKE_PREFIX_PATH}
 ENV LD_LIBRARY_PATH=/opt/vendor/lib:/opt/onnxruntime/lib:${LD_LIBRARY_PATH}
@@ -212,5 +215,6 @@ ARG USERNAME=rvl
 USER ${USERNAME}
 RUN echo '[ -f /opt/vendor/local_setup.bash ] && source /opt/vendor/local_setup.bash' >> /home/${USERNAME}/.bashrc
 
+ENTRYPOINT ["/usr/local/bin/ros_entrypoint_ext.sh"]
 WORKDIR /ws
 CMD ["bash"]

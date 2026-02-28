@@ -215,7 +215,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("extra", nargs=argparse.REMAINDER)
 
     # check-vendor
-    sp = sub.add_parser("check-vendor", help="Run /repo/tools/check_vendor.sh in service")
+    sp = sub.add_parser("check-vendor", help="Run vendor check tool in service")
+    sp.add_argument(
+        "extra",
+        nargs=argparse.REMAINDER,
+        help="Pass-through args to vendor_check.py (use -- to separate)",
+    )
 
     # config (debug merge result)
     sp = sub.add_parser("config", help="docker compose config (merged view)")
@@ -314,10 +319,14 @@ def main() -> int:
         return _run(cmd)
 
     if args.cmd == "check-vendor":
-        return _run(
-            compose
-            + ["exec", service, "bash", "-lc", "/repo/tools/check_vendor.sh"]
+        check_service = args.service or DEFAULT_SERVICE_PREBUILT
+        cmd = (
+            ["docker", "compose"]
+            + _compose_file_args(files)
+            + ["-p", project_name, "exec", check_service, "python3", "/usr/local/bin/vendor_check.py"]
         )
+        cmd += _strip_leading_double_dash(args.extra)
+        return _run(cmd)
 
     if args.cmd == "config":
         return _run(
