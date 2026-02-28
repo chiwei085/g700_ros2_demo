@@ -8,12 +8,13 @@
 #include <vector>
 
 #include <builtin_interfaces/msg/time.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp/executors/multi_threaded_executor.hpp>
-#include <sensor_msgs/msg/image.hpp>
 
 #include "yolo_ros/coco_names.hpp"
 #include "yolo_ros/yolo_onnx.hpp"
@@ -21,59 +22,131 @@
 namespace yolo_ros
 {
 
+namespace
+{
+
+using ImageMsg = sensor_msgs::msg::Image;
+
+constexpr char kWindowName[] = "YOLO";
+constexpr double kDefaultFps = 2.0;
+constexpr double kStatsIntervalSec = 5.0;
+
+inline bool isQuitKey(const int key)
+{
+  return key == 27 || key == 'q' || key == 'Q';
+}
+
+inline double safeFps(const double target_fps)
+{
+  return target_fps > 0.0 ? target_fps : kDefaultFps;
+}
+
+inline double elapsedMs(
+  const std::chrono::steady_clock::time_point & start,
+  const std::chrono::steady_clock::time_point & end)
+{
+  return std::chrono::duration<double, std::milli>(end - start).count();
+}
+
+struct RollingStats
+{
+  std::chrono::steady_clock::time_point stat_start{std::chrono::steady_clock::now()};
+  double infer_ms_sum{0.0};
+  int infer_count{0};
+
+  void addSample(const double infer_ms)
+  {
+    infer_ms_sum += infer_ms;
+    ++infer_count;
+  }
+
+  bool shouldReport(const std::chrono::steady_clock::time_point & now) const
+  {
+    const double elapsed_sec = std::chrono::duration<double>(now - stat_start).count();
+    return elapsed_sec >= kStatsIntervalSec && infer_count > 0;
+  }
+
+  void reset(const std::chrono::steady_clock::time_point & now)
+  {
+    stat_start = now;
+    infer_ms_sum = 0.0;
+    infer_count = 0;
+  }
+};
+
+}  // namespace
+
 class YoloInferGuiNode : public rclcpp::Node
 {
 public:
   YoloInferGuiNode()
   : Node("yolo_infer")
   {
-    model_path_ = this->declare_parameter<std::string>("model_path", "/ws/src/yolo_ros/model/model.onnx");
-    input_width_ = this->declare_parameter<int>("input_width", 640);
-    input_height_ = this->declare_parameter<int>("input_height", 640);
-    conf_thres_ = this->declare_parameter<double>("conf_thres", 0.25);
-    iou_thres_ = this->declare_parameter<double>("iou_thres", 0.45);
-    ort_threads_ = this->declare_parameter<int>("ort_threads", 1);
-    target_fps_ = this->declare_parameter<double>("target_fps", 2.0);
-    show_window_ = this->declare_parameter<bool>("show_window", true);
-    draw_labels_ = this->declare_parameter<bool>("draw_labels", true);
-    sample_policy_ = this->declare_parameter<std::string>("sample_policy", "latest");
+    config_.model_path = this->declare_parameter<std::string>("model_path", "/ws/src/yolo_ros/model/model.onnx");
+    config_.input_width = this->declare_parameter<int>("input_width", 640);
+    config_.input_height = this->declare_parameter<int>("input_height", 640);
+    config_.conf_thres = this->declare_parameter<double>("conf_thres", 0.25);
+    config_.iou_thres = this->declare_parameter<double>("iou_thres", 0.45);
+    config_.ort_threads = this->declare_parameter<int>("ort_threads", 1);
+    config_.target_fps = this->declare_parameter<double>("target_fps", 2.0);
+    config_.show_window = this->declare_parameter<bool>("show_window", true);
+    config_.draw_labels = this->declare_parameter<bool>("draw_labels", true);
+    config_.sample_policy = this->declare_parameter<std::string>("sample_policy", "latest");
 
     yolo_ = std::make_unique<YoloOnnx>(
-      model_path_, input_width_, input_height_, static_cast<float>(conf_thres_),
-      static_cast<float>(iou_thres_), ort_threads_);
+      config_.model_path, config_.input_width, config_.input_height,
+      static_cast<float>(config_.conf_thres), static_cast<float>(config_.iou_thres), config_.ort_threads);
 
     RCLCPP_INFO(
       get_logger(),
       "yolo_infer config: model_path=%s target_fps=%.2f ort_threads=%d sample_policy=%s "
       "show_window=%s draw_labels=%s",
-      model_path_.c_str(), target_fps_, ort_threads_, sample_policy_.c_str(), show_window_ ? "true" : "false",
-      draw_labels_ ? "true" : "false");
+      config_.model_path.c_str(), config_.target_fps, config_.ort_threads, config_.sample_policy.c_str(),
+      config_.show_window ? "true" : "false", config_.draw_labels ? "true" : "false");
 
-    image_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-    rclcpp::SubscriptionOptions image_sub_opts;
-    image_sub_opts.callback_group = image_callback_group_;
-    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+    cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    sub_opts_.callback_group = cb_group_;
+    image_sub_ = this->create_subscription<ImageMsg>(
       "/camera/camera/color/image_raw",
       rclcpp::SensorDataQoS(),
       std::bind(&YoloInferGuiNode::imageCallback, this, std::placeholders::_1),
-      image_sub_opts);
+      sub_opts_);
 
     infer_thread_ = std::thread(&YoloInferGuiNode::inferLoop, this);
   }
 
   ~YoloInferGuiNode() override
   {
-    stop_.store(true);
-    if (infer_thread_.joinable()) {
-      infer_thread_.join();
-    }
-    if (show_window_) {
-      cv::destroyWindow("YOLO");
+    stopAndJoinInferThread();
+    if (config_.show_window) {
+      cv::destroyWindow(kWindowName);
     }
   }
 
 private:
-  void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
+  struct Config
+  {
+    std::string model_path;
+    int input_width{640};
+    int input_height{640};
+    double conf_thres{0.25};
+    double iou_thres{0.45};
+    int ort_threads{1};
+    double target_fps{2.0};
+    bool show_window{true};
+    bool draw_labels{true};
+    std::string sample_policy{"latest"};
+  };
+
+  void stopAndJoinInferThread()
+  {
+    stop_.store(true);
+    if (infer_thread_.joinable()) {
+      infer_thread_.join();
+    }
+  }
+
+  void imageCallback(const ImageMsg::SharedPtr msg)
   {
     cv_bridge::CvImagePtr cv_ptr;
     try {
@@ -92,16 +165,12 @@ private:
 
   void inferLoop()
   {
-    if (show_window_) {
-      cv::namedWindow("YOLO", cv::WINDOW_NORMAL);
+    if (config_.show_window) {
+      cv::namedWindow(kWindowName, cv::WINDOW_NORMAL);
     }
 
-    const double safe_fps = target_fps_ > 0.0 ? target_fps_ : 2.0;
-    const auto target_period = std::chrono::duration<double>(1.0 / safe_fps);
-
-    auto stat_start = std::chrono::steady_clock::now();
-    double infer_ms_sum = 0.0;
-    int infer_count = 0;
+    const auto target_period = std::chrono::duration<double>(1.0 / safeFps(config_.target_fps));
+    RollingStats stats;
 
     while (rclcpp::ok() && !stop_.load()) {
       const auto loop_begin = std::chrono::steady_clock::now();
@@ -119,17 +188,13 @@ private:
         const std::vector<Detection> detections = yolo_->infer(frame);
         const auto infer_end = std::chrono::steady_clock::now();
 
-        const double infer_ms =
-          std::chrono::duration<double, std::milli>(infer_end - infer_begin).count();
-        infer_ms_sum += infer_ms;
-        ++infer_count;
-
+        stats.addSample(elapsedMs(infer_begin, infer_end));
         drawDetections(frame, detections);
 
-        if (show_window_) {
-          cv::imshow("YOLO", frame);
+        if (config_.show_window) {
+          cv::imshow(kWindowName, frame);
           const int key = cv::waitKey(1);
-          if (key == 27 || key == 'q' || key == 'Q') {
+          if (isQuitKey(key)) {
             stop_.store(true);
             rclcpp::shutdown();
             break;
@@ -138,18 +203,17 @@ private:
       }
 
       const auto now = std::chrono::steady_clock::now();
-      const auto stat_elapsed = std::chrono::duration<double>(now - stat_start).count();
-      if (stat_elapsed >= 5.0 && infer_count > 0) {
-        const double avg_ms = infer_ms_sum / static_cast<double>(infer_count);
-        const double effective_fps = static_cast<double>(infer_count) / stat_elapsed;
+      if (stats.shouldReport(now)) {
+        const double elapsed_sec = std::chrono::duration<double>(now - stats.stat_start).count();
+        const double avg_ms = stats.infer_ms_sum / static_cast<double>(stats.infer_count);
+        const double effective_fps = static_cast<double>(stats.infer_count) / elapsed_sec;
         RCLCPP_INFO(
           get_logger(), "avg infer: %.2f ms, effective infer fps: %.2f", avg_ms, effective_fps);
-        stat_start = now;
-        infer_ms_sum = 0.0;
-        infer_count = 0;
+        stats.reset(now);
       }
 
-      const auto loop_elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_begin);
+      const auto loop_elapsed =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - loop_begin);
       if (loop_elapsed < target_period) {
         std::this_thread::sleep_for(target_period - loop_elapsed);
       }
@@ -160,9 +224,10 @@ private:
   {
     for (const auto & det : detections) {
       cv::rectangle(frame, det.box, cv::Scalar(0, 255, 0), 2);
-      if (!draw_labels_) {
+      if (!config_.draw_labels) {
         continue;
       }
+
       const std::string class_name =
         det.class_id >= 0 && static_cast<size_t>(det.class_id) < kCocoClassNames.size()
         ? std::string(kCocoClassNames[static_cast<size_t>(det.class_id)])
@@ -191,21 +256,13 @@ private:
   bool has_frame_{false};
   std::atomic<bool> stop_{false};
 
+  Config config_;
   std::unique_ptr<YoloOnnx> yolo_;
   std::thread infer_thread_;
-  rclcpp::CallbackGroup::SharedPtr image_callback_group_;
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 
-  std::string model_path_;
-  int input_width_{640};
-  int input_height_{640};
-  double conf_thres_{0.25};
-  double iou_thres_{0.45};
-  int ort_threads_{1};
-  double target_fps_{2.0};
-  bool show_window_{true};
-  bool draw_labels_{true};
-  std::string sample_policy_{"latest"};
+  rclcpp::CallbackGroup::SharedPtr cb_group_;
+  rclcpp::SubscriptionOptions sub_opts_;
+  rclcpp::Subscription<ImageMsg>::SharedPtr image_sub_;
 };
 
 }  // namespace yolo_ros
