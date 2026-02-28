@@ -103,6 +103,64 @@ Run workspace build gates from host via the wrapper:
 ./build_container.py --vendor-mode source exec -- bash -lc "/repo/tools/build_gate.sh --mode source --pkgs full"
 ```
 
+## Demo Quickstart (RealSense + ORB-SLAM3 + YOLO)
+
+Run the demo inside container shells (for example, first open one shell with `uv run ./build_container.py exec`, then use two terminals).
+
+### A) Terminal A — Start RealSense (RGB-D)
+
+```bash
+ros2 launch realsense2_camera rs_launch.py \
+  camera_name:=camera \
+  enable_sync:=true \
+  align_depth.enable:=true \
+  enable_gyro:=false \
+  enable_accel:=false
+```
+
+### B) Terminal B — Start SLAM + YOLO (with GUI)
+
+```bash
+ros2 launch yolo_ros realsense_d435i_rgbd_yolo_slam.launch.py \
+  start_realsense:=false \
+  wait_for_topics:=true \
+  enable_yolo_infer:=true \
+  yolo_show_window:=true \
+  yolo_target_fps:=2.0 \
+  yolo_ort_threads:=1 \
+  yolo_conf_thres:=0.25 \
+  yolo_iou_thres:=0.45
+```
+
+### C) Expected outputs (what you should see)
+
+- YOLO HighGUI window opens and shows camera frames with boxes.
+- ORB-SLAM3 logs: "topic gate passed" and "New Map created ..."
+- Useful topics: `/orb_slam3/camera_pose`, `/tf`
+
+### D) Performance knobs (CPU-friendly)
+
+- `yolo_target_fps`: set to `1.0` if CPU is tight
+- `yolo_ort_threads`: keep `1` when SLAM is running
+- `yolo_show_window`: set `false` for headless runs
+- `draw_labels`: set `false` to reduce overlay drawing overhead
+
+### E) Cleanup (avoid duplicate nodes)
+
+Run inside the container:
+
+```bash
+pkill -f "ros2 launch" || true
+pkill -f "realsense2_camera" || true
+pkill -f "orb_slam3" || true
+pkill -f "yolo_infer" || true
+pkill -f "yolo_dummy" || true
+pkill -f "ros_rgbd" || true
+pkill -f "run_and_tee.py" || true
+```
+
+If you also started source profile processes, stop them before running this demo.
+
 ## Conan and Cache Strategy
 
 `compose.yml` mounts project-local caches:
