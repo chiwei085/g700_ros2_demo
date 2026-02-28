@@ -3,7 +3,6 @@
 ROS 2 Humble container workspace (arm64) with:
 - `orbslam3_ros2` and `realsense-ros` as git submodules
 - Docker BuildKit optimized image build
-- Conan-managed non-ROS dependencies for `orbslam3_ros2`
 - Local tooling executed via `uv`
 
 ## Prerequisites
@@ -56,27 +55,6 @@ uv run python build_container.py down
 ```
 
 `replug` flow is intentionally removed. If device/runtime state changes, just recreate the container with `--force-recreate`.
-
-## Dev Toolchain In Container
-
-Container image includes LLVM tools from Ubuntu 22.04 official repositories:
-- `clangd-15`
-- `clang-format-15`
-- `clang-tidy-15`
-- `clang-tools-15` (for utilities such as `run-clang-tidy` and `clang-apply-replacements`)
-
-`update-alternatives` is configured during build so default commands resolve to version 15:
-- `clangd`
-- `clang-format`
-- `clang-tidy`
-
-Check versions inside container:
-
-```bash
-clangd --version
-clang-format --version
-clang-tidy --version
-```
 
 ## RealSense Override
 
