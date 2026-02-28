@@ -355,9 +355,9 @@ def main() -> int:
         extra_args = _strip_leading_double_dash(args.extra)
         check_cmd = (
             'if ! command -v uv >/dev/null 2>&1; then '
-            'python3 -m pip install --user uv >/dev/null; '
-            'fi; '
-            'export PATH="$HOME/.local/bin:$PATH"; '
+            'echo "[ERROR] uv not found in container PATH" >&2; '
+            "exit 127; "
+            "fi; "
             'uv run /usr/local/bin/vendor_check.py "$@"'
         )
         cmd = (

@@ -144,6 +144,13 @@ RUN git clone --depth=1 https://github.com/Bash-it/bash-it.git /opt/bash-it \
 RUN rosdep init 2>/dev/null || true
 RUN rosdep update || true
 
+ARG UV_VERSION=0.5.31
+RUN set -eux; \
+    curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --version "${UV_VERSION}"; \
+    install -m 0755 /root/.local/bin/uv /usr/local/bin/uv; \
+    command -v uv; \
+    uv --version
+
 USER ${USERNAME}
 ENV CONAN_HOME=/home/${USERNAME}/.conan2
 RUN mkdir -p "${CONAN_HOME}" \

@@ -29,6 +29,7 @@ git submodule update --init --recursive --depth 1
 ## Local Container Commands (via uv)
 
 All local helper commands should be run with `uv run`.
+Prefer `uv run ./build_container.py ...` so Python dependencies are resolved by `uv` and host missing-package errors are avoided.
 
 1. Build image:
 
