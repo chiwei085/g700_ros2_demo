@@ -1,0 +1,39 @@
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++17
+AccessModifierOffset: -4
+IndentWidth: 4
+ColumnLimit: 80
+AllowShortFunctionsOnASingleLine: Inline
+DerivePointerAlignment: false
+PointerAlignment: Left
+IncludeBlocks: Regroup
+IncludeCategories:
+  # 1) Third-party / framework headers first (ROS/OpenCV/Eigen/ORB, etc.).
+  - Regex: '^<[^>]*[/.][^>]*>$'
+    Priority: 1
+  - Regex: '^"(?!orbslam3_ros2/).*"'
+    Priority: 1
+  # 2) C/C++ standard library headers.
+  - Regex: '^<.*>$'
+    Priority: 2
+  # 3) Project headers last.
+  - Regex: '^"orbslam3_ros2/.*"'
+    Priority: 3
+  - Regex: '.*'
+    Priority: 4
+SortIncludes: true
+UseTab: Never
+TabWidth: 4
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: false
+  AfterClass: true
+  AfterControlStatement: false
+  AfterEnum: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeElse: true
+  BeforeCatch: true
+  IndentBraces: false

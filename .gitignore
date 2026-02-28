@@ -12,8 +12,10 @@ wheels/
 
 # ROS 2 / colcon build artifacts
 colcon_ws/
+!colcon_ws/
 !colcon_ws/src/
 !colcon_ws/src/**
+!colcon_ws/src/**/.clang-format
 colcon_ws/build/
 colcon_ws/install/
 colcon_ws/log/
