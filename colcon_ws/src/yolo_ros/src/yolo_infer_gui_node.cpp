@@ -12,6 +12,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
 #include "yolo_ros/coco_names.hpp"
@@ -48,10 +49,14 @@ public:
       model_path_.c_str(), target_fps_, ort_threads_, sample_policy_.c_str(), show_window_ ? "true" : "false",
       draw_labels_ ? "true" : "false");
 
+    image_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    rclcpp::SubscriptionOptions image_sub_opts;
+    image_sub_opts.callback_group = image_callback_group_;
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
       "/camera/camera/color/image_raw",
       rclcpp::SensorDataQoS(),
-      std::bind(&YoloInferGuiNode::imageCallback, this, std::placeholders::_1));
+      std::bind(&YoloInferGuiNode::imageCallback, this, std::placeholders::_1),
+      image_sub_opts);
 
     infer_thread_ = std::thread(&YoloInferGuiNode::inferLoop, this);
   }
@@ -188,6 +193,7 @@ private:
 
   std::unique_ptr<YoloOnnx> yolo_;
   std::thread infer_thread_;
+  rclcpp::CallbackGroup::SharedPtr image_callback_group_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 
   std::string model_path_;
@@ -208,7 +214,10 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<yolo_ros::YoloInferGuiNode>();
-  rclcpp::spin(node);
+  rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 2);
+  exec.add_node(node);
+  exec.spin();
+  exec.remove_node(node);
   rclcpp::shutdown();
   return 0;
 }
