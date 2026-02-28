@@ -77,7 +77,7 @@ public:
         config_.model_path = declare_parameter<std::string>(
             "model_path", "/ws/src/yolo_ros/model/model.onnx");
         config_.input_width = declare_parameter("input_width", 640);
-        config_.input_height = declare_paramete("input_height", 640);
+        config_.input_height = declare_parameter("input_height", 640);
         config_.conf_thres = declare_parameter("conf_thres", 0.25);
         config_.iou_thres = declare_parameter("iou_thres", 0.45);
         config_.ort_threads = declare_parameter("ort_threads", 1);
