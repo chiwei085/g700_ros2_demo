@@ -56,6 +56,7 @@ private:
   std::vector<std::string> output_names_;
   std::vector<const char *> output_name_ptrs_;
   std::vector<int64_t> input_tensor_shape_;
+  std::vector<float> input_buffer_;
 };
 
 }  // namespace yolo_ros

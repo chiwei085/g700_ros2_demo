@@ -105,7 +105,7 @@ private:
       {
         std::lock_guard<std::mutex> lock(frame_mutex_);
         if (has_frame_ && !latest_frame_.empty()) {
-          frame = latest_frame_.clone();
+          frame = latest_frame_;
         }
       }
 

@@ -47,6 +47,7 @@ YoloOnnx::YoloOnnx(
 
   session_ = Ort::Session(env_, model_path.c_str(), session_options_);
   input_tensor_shape_ = {1, 3, input_height_, input_width_};
+  input_buffer_.resize(static_cast<size_t>(3 * input_width_ * input_height_));
 
   Ort::AllocatorWithDefaultOptions allocator;
   {
@@ -72,11 +73,10 @@ std::vector<Detection> YoloOnnx::infer(const cv::Mat & bgr_image)
     return {};
   }
 
-  std::vector<float> input_buffer(static_cast<size_t>(3 * input_width_ * input_height_));
-  const LetterboxInfo letterbox = preprocessToInput(bgr_image, input_buffer);
+  const LetterboxInfo letterbox = preprocessToInput(bgr_image, input_buffer_);
 
   Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-    memory_info_, input_buffer.data(), input_buffer.size(), input_tensor_shape_.data(),
+    memory_info_, input_buffer_.data(), input_buffer_.size(), input_tensor_shape_.data(),
     input_tensor_shape_.size());
 
   const char * input_names[] = {input_name_.c_str()};
