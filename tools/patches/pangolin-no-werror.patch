@@ -1,0 +1,11 @@
+--- a/third_party/Pangolin/CMakeLists.txt
++++ b/third_party/Pangolin/CMakeLists.txt
+@@ -86,7 +86,7 @@
+ endif()
+ 
+ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+-    add_compile_options(-Wall -Wextra -Werror)
++    add_compile_options(-Wall -Wextra)
+     # error: ISO C++ prohibits anonymous structs
+     # add_compile_options(-Wpedantic)
+     # ignore "parentheses" warning for custom "picojson" fork

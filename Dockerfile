@@ -167,10 +167,16 @@ ENV CMAKE_BUILD_PARALLEL_LEVEL=${VENDOR_BUILD_JOBS}
 ENV MAKEFLAGS=-j${VENDOR_BUILD_JOBS}
 
 COPY colcon_ws/src/orbslam3_ros2_vendor ./src/orbslam3_ros2_vendor
+COPY tools/patches/vendor-build-parallel.patch /tmp/vendor-build-parallel.patch
+COPY tools/patches/pangolin-no-werror.patch /tmp/pangolin-no-werror.patch
 
 RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
     set -eux; \
     echo "vendor cache bust: ${VENDOR_CACHE_BUST}"; \
+    patch --batch --forward -p1 -d /tmp/vendor_ws/src/orbslam3_ros2_vendor \
+      < /tmp/vendor-build-parallel.patch; \
+    patch --batch --forward -p1 -d /tmp/vendor_ws/src/orbslam3_ros2_vendor \
+      < /tmp/pangolin-no-werror.patch; \
     export CXXFLAGS="${CXXFLAGS:-} -Wno-error=type-limits"; \
     set +u; \
     source /opt/ros/humble/setup.bash; \

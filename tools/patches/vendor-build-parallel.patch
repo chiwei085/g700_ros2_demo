@@ -1,0 +1,24 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,8 +84,8 @@
+     "-DBUILD_EXAMPLES=OFF"
+     "-DBUILD_TOOLS=OFF"
+     "-DBUILD_TESTS=OFF"
+-    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
+-    INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel)
++    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel 1
++    INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel 1)
+ 
+ ExternalProject_Add(orbslam3_ep
+     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/orbslam3_ep"
+@@ -98,8 +98,8 @@
+     ${_vendor_common_cmake_args}
+     "-DCMAKE_PREFIX_PATH=<INSTALL_DIR>"
+     "-DORBROS_BUILD_ORB_SLAM3_EXAMPLES=OFF"
+-    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
+-    INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel
++    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel 1
++    INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install --parallel 1
+     DEPENDS pangolin_ep)
+ 
+ add_custom_target(${PROJECT_NAME}_vendor ALL
