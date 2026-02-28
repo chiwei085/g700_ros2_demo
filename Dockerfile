@@ -163,6 +163,7 @@ WORKDIR /tmp/vendor_ws
 
 ARG VENDOR_BUILD_JOBS=1
 ARG VENDOR_CACHE_BUST=static
+ARG VENDOR_GIT_SHA=unknown
 ENV CMAKE_BUILD_PARALLEL_LEVEL=${VENDOR_BUILD_JOBS}
 ENV MAKEFLAGS=-j${VENDOR_BUILD_JOBS}
 
@@ -190,13 +191,9 @@ RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache; \
-    vendor_rev="unknown"; \
-    if [ -d /tmp/vendor_ws/src/orbslam3_ros2_vendor/.git ]; then \
-      vendor_rev="$(git -C /tmp/vendor_ws/src/orbslam3_ros2_vendor rev-parse HEAD || echo unknown)"; \
-    fi; \
     { \
       echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
-      echo "vendor_rev=${vendor_rev}"; \
+      echo "vendor_rev=${VENDOR_GIT_SHA}"; \
     } > /opt/vendor/.vendor.stamp; \
     rm -rf /tmp/vendor_ws/build /tmp/vendor_ws/log
 

@@ -44,6 +44,32 @@ def _run(cmd: list[str], *, env: dict[str, str] | None = None) -> int:
     return p.returncode
 
 
+def _get_vendor_git_sha() -> str:
+    try:
+        p = subprocess.run(
+            [
+                "git",
+                "-C",
+                "colcon_ws/src/orbslam3_ros2_vendor",
+                "rev-parse",
+                "HEAD",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        sha = p.stdout.strip()
+        if sha:
+            return sha
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    print(
+        "[WARN] failed to resolve vendor git SHA; falling back to VENDOR_GIT_SHA=unknown"
+    )
+    return "unknown"
+
+
 def _resolve_service(vendor_mode: str, explicit_service: str) -> str:
     if explicit_service:
         return explicit_service
@@ -309,10 +335,13 @@ def main() -> int:
 
     if args.cmd == "build-vendor":
         cache_bust = str(int(time.time()))
+        vendor_sha = _get_vendor_git_sha()
         cmd = compose + [
             "build",
             "--build-arg",
             f"VENDOR_CACHE_BUST={cache_bust}",
+            "--build-arg",
+            f"VENDOR_GIT_SHA={vendor_sha}",
             DEFAULT_SERVICE_PREBUILT,
         ]
         cmd += _strip_leading_double_dash(args.extra)
