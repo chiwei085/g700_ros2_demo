@@ -1,0 +1,9 @@
+[submodule "colcon_ws/src/orbslam3_ros2"]
+	path = colcon_ws/src/orbslam3_ros2
+	url = https://github.com/chiwei085/orbslam3_ros2.git
+[submodule "colcon_ws/src/orbslam3_ros2_vendor"]
+	path = colcon_ws/src/orbslam3_ros2_vendor
+	url = https://github.com/chiwei085/orbslam3_ros2_vendor.git
+[submodule "colcon_ws/src/realsense-ros"]
+	path = colcon_ws/src/realsense-ros
+	url = https://github.com/realsenseai/realsense-ros.git
