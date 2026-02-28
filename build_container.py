@@ -52,8 +52,7 @@ def _compute_vendor_git_sha() -> str:
     try:
         p = subprocess.run(
             ["git", "-C", str(repo), "rev-parse", "HEAD"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             check=False,
         )
