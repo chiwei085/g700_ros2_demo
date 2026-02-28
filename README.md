@@ -105,7 +105,11 @@ Run workspace build gates from host via the wrapper:
 
 ## Demo Quickstart (RealSense + ORB-SLAM3 + YOLO)
 
-Run the demo inside container shells (for example, first open one shell with `uv run ./build_container.py exec`, then use two terminals).
+Before starting, enter the container in each terminal:
+
+```bash
+uv run ./build_container.py exec
+```
 
 ### A) Terminal A — Start RealSense (RGB-D)
 
@@ -143,7 +147,6 @@ ros2 launch yolo_ros realsense_d435i_rgbd_yolo_slam.launch.py \
 - `yolo_target_fps`: set to `1.0` if CPU is tight
 - `yolo_ort_threads`: keep `1` when SLAM is running
 - `yolo_show_window`: set `false` for headless runs
-- `draw_labels`: set `false` to reduce overlay drawing overhead
 
 ### E) Cleanup (avoid duplicate nodes)
 
@@ -154,51 +157,4 @@ pkill -f "ros2 launch" || true
 pkill -f "realsense2_camera" || true
 pkill -f "orb_slam3" || true
 pkill -f "yolo_infer" || true
-pkill -f "yolo_dummy" || true
-pkill -f "ros_rgbd" || true
-pkill -f "run_and_tee.py" || true
 ```
-
-If you also started source profile processes, stop them before running this demo.
-
-## Conan and Cache Strategy
-
-`compose.yml` mounts project-local caches:
-- `./.cache/conan2 -> /home/rvl/.conan2`
-- `./.cache/ccache -> /home/rvl/.cache/ccache`
-
-Both are git-ignored.
-
-Inside container (`/ws`) build `orbslam3_ros2`:
-
-```bash
-conan install src/orbslam3_ros2 \
-  -pr:h src/orbslam3_ros2/conan/profiles/myprofile \
-  -pr:b src/orbslam3_ros2/conan/profiles/myprofile \
-  -of build/conan \
-  -b missing
-
-source /opt/ros/humble/setup.bash
-colcon build --packages-select orbslam3_ros2 \
-  --cmake-args \
-    -DCMAKE_TOOLCHAIN_FILE=$PWD/build/conan/conan_toolchain.cmake \
-    -DCMAKE_PREFIX_PATH=$PWD/build/conan \
-    -DCMAKE_BUILD_TYPE=Release
-```
-
-## Repository Notes
-
-- `Dockerfile`: base image, RealSense SDK, Conan tooling
-- `compose.yml`: runtime mounts and cache persistence
-- `build_container.py`: compose wrapper (BuildKit env + optional RealSense override)
-- `tools/gen_realsense_override.py`: Intel node detection and override generation
-
-## Cache Design Notes
-
-- APT installs use BuildKit cache mounts:
-  - `/var/cache/apt`
-  - `/var/lib/apt/lists`
-- LLVM dev tools are installed in a dedicated Docker layer to avoid invalidating the larger base-package layer.
-- Local persistent runtime caches remain in project mounts:
-  - `./.cache/conan2`
-  - `./.cache/ccache`
