@@ -1,0 +1,32 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+*.pyc
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# ROS 2 / colcon build artifacts
+colcon_ws/build/
+colcon_ws/install/
+colcon_ws/log/
+
+# Common local artifacts
+*.log
+backups/
+
+# Project-local build caches
+.cache/
+.cache/conan2/
+colcon_ws/.conan2/
+.cache/ccache/
+
+# Generated docker compose override
+compose.realsense.override.yml
+
+# VSCode
+.vscode
