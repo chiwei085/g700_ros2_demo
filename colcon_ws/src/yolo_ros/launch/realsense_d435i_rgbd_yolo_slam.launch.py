@@ -36,7 +36,13 @@ def generate_launch_description() -> LaunchDescription:
     ]
 
     declared_args = [
-        DeclareLaunchArgument("enable_yolo", default_value="true"),
+        DeclareLaunchArgument("enable_yolo_infer", default_value="true"),
+        DeclareLaunchArgument("yolo_model_path", default_value="/ws/src/yolo_ros/model/model.onnx"),
+        DeclareLaunchArgument("yolo_target_fps", default_value="2.0"),
+        DeclareLaunchArgument("yolo_ort_threads", default_value="1"),
+        DeclareLaunchArgument("yolo_show_window", default_value="true"),
+        DeclareLaunchArgument("yolo_conf_thres", default_value="0.25"),
+        DeclareLaunchArgument("yolo_iou_thres", default_value="0.45"),
     ]
     for name, default in passthrough_args:
         declared_args.append(DeclareLaunchArgument(name, default_value=default))
@@ -56,10 +62,20 @@ def generate_launch_description() -> LaunchDescription:
 
     yolo_node = Node(
         package="yolo_ros",
-        executable="yolo_dummy",
-        name="yolo_dummy",
+        executable="yolo_infer_gui_node",
+        name="yolo_infer",
         output="screen",
-        condition=IfCondition(LaunchConfiguration("enable_yolo")),
+        condition=IfCondition(LaunchConfiguration("enable_yolo_infer")),
+        parameters=[
+            {
+                "model_path": LaunchConfiguration("yolo_model_path"),
+                "target_fps": LaunchConfiguration("yolo_target_fps"),
+                "ort_threads": LaunchConfiguration("yolo_ort_threads"),
+                "show_window": LaunchConfiguration("yolo_show_window"),
+                "conf_thres": LaunchConfiguration("yolo_conf_thres"),
+                "iou_thres": LaunchConfiguration("yolo_iou_thres"),
+            }
+        ],
     )
 
     return LaunchDescription(declared_args + [orbslam_launch, yolo_node])
