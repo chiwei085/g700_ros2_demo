@@ -13,7 +13,6 @@ services:
         BASE_BUILD_JOBS: 1
         VENDOR_BUILD_JOBS: 1
         LIBREALSENSE_BUILD_JOBS: 1
-    container_name: ros-stack
     network_mode: host
     group_add:
       - video
@@ -66,7 +65,6 @@ services:
         BASE_BUILD_JOBS: 1
         VENDOR_BUILD_JOBS: 1
         LIBREALSENSE_BUILD_JOBS: 1
-    container_name: ros-stack-source
     network_mode: host
     group_add:
       - video

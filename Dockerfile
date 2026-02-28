@@ -171,10 +171,7 @@ COPY colcon_ws/src/orbslam3_ros2_vendor ./src/orbslam3_ros2_vendor
 RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
     set -eux; \
     echo "vendor cache bust: ${VENDOR_CACHE_BUST}"; \
-    sed -i "s/--parallel/--parallel ${VENDOR_BUILD_JOBS}/g" \
-      /tmp/vendor_ws/src/orbslam3_ros2_vendor/CMakeLists.txt; \
-    sed -i 's/add_compile_options(-Wall -Wextra -Werror)/add_compile_options(-Wall -Wextra)/' \
-      /tmp/vendor_ws/src/orbslam3_ros2_vendor/third_party/Pangolin/CMakeLists.txt; \
+    export CXXFLAGS="${CXXFLAGS:-} -Wno-error=type-limits"; \
     set +u; \
     source /opt/ros/humble/setup.bash; \
     set -u; \
@@ -186,8 +183,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
       --cmake-args \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-        -DCMAKE_CXX_FLAGS=-Wno-error=type-limits; \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache; \
     vendor_rev="unknown"; \
     if [ -d /tmp/vendor_ws/src/orbslam3_ros2_vendor/.git ]; then \
       vendor_rev="$(git -C /tmp/vendor_ws/src/orbslam3_ros2_vendor rev-parse HEAD || echo unknown)"; \

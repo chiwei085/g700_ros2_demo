@@ -13,6 +13,7 @@ DEFAULT_BASE_FILES = ["compose.yml"]
 DEFAULT_SERVICE_PREBUILT = "ros-stack"
 DEFAULT_SERVICE_SOURCE = "ros-stack-source"
 DEFAULT_OVERRIDE = Path("compose.realsense.override.yml")
+DEFAULT_PROJECT_SUFFIX = "arm64"
 
 
 def _compose_file_args(files: list[str]) -> list[str]:
@@ -49,6 +50,15 @@ def _resolve_service(vendor_mode: str, explicit_service: str) -> str:
     if vendor_mode == "source":
         return DEFAULT_SERVICE_SOURCE
     return DEFAULT_SERVICE_PREBUILT
+
+
+def _resolve_project_name(explicit_project: str) -> str:
+    if explicit_project:
+        return explicit_project
+    env_project = os.environ.get("COMPOSE_PROJECT_NAME", "").strip()
+    if env_project:
+        return env_project
+    return f"{Path.cwd().name}-{DEFAULT_PROJECT_SUFFIX}"
 
 
 def _maybe_add_realsense_override(
@@ -123,7 +133,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--project-name",
         default="",
-        help="Optional compose project name (-p). Helps avoid collisions across folders.",
+        help=(
+            "Compose project name (-p). Default: "
+            "COMPOSE_PROJECT_NAME or '<cwd>-arm64'."
+        ),
     )
     p.add_argument(
         "--print-files",
@@ -226,15 +239,15 @@ def main() -> int:
         override_path=override_path,
     )
 
-    compose = ["docker", "compose"] + _compose_file_args(files)
-    if args.project_name:
-        compose += ["-p", args.project_name]
+    project_name = _resolve_project_name(args.project_name)
+    compose = ["docker", "compose"] + _compose_file_args(files) + ["-p", project_name]
     if args.vendor_mode == "source":
         compose += ["--profile", "source"]
 
     if args.print_files:
         print("[info] compose files:", ", ".join(files))
         print("[info] selected service:", service)
+        print("[info] project name:", project_name)
         print("[info] vendor mode:", args.vendor_mode)
         print("[info] realsense override:", "ON" if used_override else "OFF")
         if args.realsense != "off":
