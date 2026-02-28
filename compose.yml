@@ -12,6 +12,7 @@ services:
         USER_GID: ${GID:-1000}
         BASE_BUILD_JOBS: 1
         VENDOR_BUILD_JOBS: 1
+        VENDOR_GIT_SHA: ${VENDOR_GIT_SHA:-unknown}
         LIBREALSENSE_BUILD_JOBS: 1
     network_mode: host
     group_add:
@@ -53,6 +54,7 @@ services:
         USER_GID: ${GID:-1000}
         BASE_BUILD_JOBS: 1
         VENDOR_BUILD_JOBS: 1
+        VENDOR_GIT_SHA: ${VENDOR_GIT_SHA:-unknown}
         LIBREALSENSE_BUILD_JOBS: 1
     network_mode: host
     group_add:

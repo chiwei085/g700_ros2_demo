@@ -44,30 +44,29 @@ def _run(cmd: list[str], *, env: dict[str, str] | None = None) -> int:
     return p.returncode
 
 
-def _get_vendor_git_sha() -> str:
+def _compute_vendor_git_sha() -> str:
+    repo = Path("colcon_ws/src/orbslam3_ros2_vendor")
+    if not repo.exists():
+        print(f"[WARN] vendor repo not found: {repo}")
+        return "unknown"
     try:
         p = subprocess.run(
-            [
-                "git",
-                "-C",
-                "colcon_ws/src/orbslam3_ros2_vendor",
-                "rev-parse",
-                "HEAD",
-            ],
-            check=True,
-            capture_output=True,
+            ["git", "-C", str(repo), "rev-parse", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
+            check=False,
         )
-        sha = p.stdout.strip()
-        if sha:
-            return sha
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    print(
-        "[WARN] failed to resolve vendor git SHA; falling back to VENDOR_GIT_SHA=unknown"
-    )
-    return "unknown"
+    except OSError as e:
+        print(f"[WARN] failed to run git for vendor sha: {e}")
+        return "unknown"
+    sha = (p.stdout or "").strip()
+    if p.returncode != 0 or not sha:
+        print("[WARN] failed to resolve vendor git sha; using unknown")
+        if p.stderr:
+            print(f"[WARN] git stderr: {p.stderr.strip()}")
+        return "unknown"
+    return sha
 
 
 def _resolve_service(vendor_mode: str, explicit_service: str) -> str:
@@ -284,6 +283,9 @@ def main() -> int:
         if args.realsense != "off":
             print("[info] realsense detected:", "YES" if found_device else "NO")
 
+    vendor_sha = _compute_vendor_git_sha()
+    build_env = {"VENDOR_GIT_SHA": vendor_sha}
+
     if args.cmd == "up":
         cmd = compose + ["up"]
         if args.detach:
@@ -296,6 +298,8 @@ def main() -> int:
             cmd.append("--no-deps")
         cmd.append(service)
         cmd += _strip_leading_double_dash(args.extra)
+        if args.build:
+            return _run(cmd, env=build_env)
         return _run(cmd)
 
     if args.cmd == "down":
@@ -331,11 +335,10 @@ def main() -> int:
     if args.cmd == "build":
         cmd = compose + ["build", service]
         cmd += _strip_leading_double_dash(args.extra)
-        return _run(cmd)
+        return _run(cmd, env=build_env)
 
     if args.cmd == "build-vendor":
         cache_bust = str(int(time.time()))
-        vendor_sha = _get_vendor_git_sha()
         cmd = compose + [
             "build",
             "--build-arg",
@@ -349,12 +352,29 @@ def main() -> int:
 
     if args.cmd == "check-vendor":
         check_service = args.service or DEFAULT_SERVICE_PREBUILT
+        extra_args = _strip_leading_double_dash(args.extra)
+        check_cmd = (
+            'if ! command -v uv >/dev/null 2>&1; then '
+            'python3 -m pip install --user uv >/dev/null; '
+            'fi; '
+            'export PATH="$HOME/.local/bin:$PATH"; '
+            'uv run /usr/local/bin/vendor_check.py "$@"'
+        )
         cmd = (
             ["docker", "compose"]
             + _compose_file_args(files)
-            + ["-p", project_name, "exec", check_service, "python3", "/usr/local/bin/vendor_check.py"]
+            + [
+                "-p",
+                project_name,
+                "exec",
+                check_service,
+                "bash",
+                "-lc",
+                check_cmd,
+                "vendor_check.py",
+            ]
         )
-        cmd += _strip_leading_double_dash(args.extra)
+        cmd += extra_args
         return _run(cmd)
 
     if args.cmd == "config":
