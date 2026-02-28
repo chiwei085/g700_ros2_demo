@@ -1,0 +1,110 @@
+services:
+  ros-stack:
+    image: ros-humble-realsense:arm64
+    platform: linux/arm64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        USERNAME: rvl
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+        BASE_BUILD_JOBS: 1
+        VENDOR_BUILD_JOBS: 1
+        LIBREALSENSE_BUILD_JOBS: 1
+    container_name: ros-stack
+    network_mode: host
+    group_add:
+      - video
+      - plugdev
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./colcon_ws/src:/ws/src:rw
+      - ws_build:/ws/build
+      - ws_install:/ws/install
+      - ws_log:/ws/log
+      - .:/repo:rw
+      - ./.cache/conan2:/home/rvl/.conan2:rw
+      - ./.cache/ccache:/home/rvl/.cache/ccache:rw
+      - /dev/shm:/dev/shm
+      - /dev/bus/usb:/dev/bus/usb
+    shm_size: "1gb"
+    environment:
+      - DISPLAY=:0
+      - QT_X11_NO_MITSHM=1
+      - TZ=Asia/Taipei
+      - CONAN_HOME=/home/rvl/.conan2
+    tty: true
+    stdin_open: true
+    working_dir: /ws
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        if [ -r /home/rvl/.docker.xauth ]; then
+          cp -f /home/rvl/.docker.xauth /home/rvl/.Xauthority
+          chmod 0600 /home/rvl/.Xauthority
+          export XAUTHORITY=/home/rvl/.Xauthority
+        fi
+        /repo/tools/check_vendor.sh || true
+        exec sleep infinity
+
+  ros-stack-source:
+    image: ros-humble-realsense:arm64-source
+    platform: linux/arm64
+    profiles: ["source"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+      args:
+        USERNAME: rvl
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+        BASE_BUILD_JOBS: 1
+        VENDOR_BUILD_JOBS: 1
+        LIBREALSENSE_BUILD_JOBS: 1
+    container_name: ros-stack-source
+    network_mode: host
+    group_add:
+      - video
+      - plugdev
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./colcon_ws/src:/ws/src:rw
+      - ws_build:/ws/build
+      - ws_install:/ws/install
+      - ws_log:/ws/log
+      - .:/repo:rw
+      - ./.cache/conan2:/home/rvl/.conan2:rw
+      - ./.cache/ccache:/home/rvl/.cache/ccache:rw
+      - /dev/shm:/dev/shm
+      - /dev/bus/usb:/dev/bus/usb
+    shm_size: "1gb"
+    environment:
+      - DISPLAY=:0
+      - QT_X11_NO_MITSHM=1
+      - TZ=Asia/Taipei
+      - CONAN_HOME=/home/rvl/.conan2
+    tty: true
+    stdin_open: true
+    working_dir: /ws
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        if [ -r /home/rvl/.docker.xauth ]; then
+          cp -f /home/rvl/.docker.xauth /home/rvl/.Xauthority
+          chmod 0600 /home/rvl/.Xauthority
+          export XAUTHORITY=/home/rvl/.Xauthority
+        fi
+        /repo/tools/check_vendor.sh || true
+        exec sleep infinity
+
+volumes:
+  ws_build:
+  ws_install:
+  ws_log:
