@@ -124,6 +124,9 @@ ros2 launch realsense2_camera rs_launch.py \
 
 ### B) Terminal B — Start SLAM + YOLO (with GUI)
 
+This launch already applies a container-safe HighGUI setup for `yolo_infer`
+(`GDK_BACKEND=x11`, `QT_X11_NO_MITSHM=1`) to avoid MIT-SHM `BadAccess` crashes.
+
 ```bash
 ros2 launch yolo_ros realsense_d435i_rgbd_yolo_slam.launch.py \
   start_realsense:=false \
@@ -153,8 +156,8 @@ ros2 launch yolo_ros realsense_d435i_rgbd_yolo_slam.launch.py \
 Run inside the container:
 
 ```bash
-pkill -f "ros2 launch" || true
-pkill -f "realsense2_camera" || true
-pkill -f "orb_slam3" || true
-pkill -f "yolo_infer" || true
+pkill -f "[r]os2 launch" || true
+pkill -f "[r]ealsense2_camera" || true
+pkill -f "[o]rb_slam3" || true
+pkill -f "[y]olo_infer" || true
 ```

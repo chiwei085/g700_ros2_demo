@@ -65,6 +65,11 @@ def generate_launch_description() -> LaunchDescription:
         executable="yolo_infer_gui_node",
         name="yolo_infer",
         output="screen",
+        # Fix Gdk-ERROR BadAccess (MIT-SHM) inside containers.
+        additional_env={
+            "QT_X11_NO_MITSHM": "1",
+            "GDK_BACKEND": "x11",
+        },
         condition=IfCondition(LaunchConfiguration("enable_yolo_infer")),
         parameters=[
             {
